@@ -241,3 +241,4 @@ describe('Authentication & Login Engine (FR-AUTH-01..06, NFR-06)', () => {
     expect(newLogin.user.email).toBe('user@example.com');
   });
 });
+
