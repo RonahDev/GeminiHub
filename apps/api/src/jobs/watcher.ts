@@ -91,3 +91,4 @@ export class BackgroundWatcher {
 }
 
 export const backgroundWatcher = new BackgroundWatcher();
+

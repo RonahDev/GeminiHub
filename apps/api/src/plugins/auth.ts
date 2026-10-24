@@ -56,3 +56,4 @@ export async function requireStaffOrAdmin(req: FastifyRequest, reply: FastifyRep
     });
   }
 }
+

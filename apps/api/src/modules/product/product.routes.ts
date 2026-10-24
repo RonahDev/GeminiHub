@@ -106,3 +106,4 @@ export const productRoutes: FastifyPluginAsync = async (fastify: FastifyInstance
     });
   });
 };
+

@@ -111,3 +111,4 @@ describe('Pricing Engine (FR-PRICE-01..08)', () => {
     expect(result.previewRows[0].isQualified).toBe(false);
   });
 });
+

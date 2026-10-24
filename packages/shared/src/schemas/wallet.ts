@@ -33,3 +33,4 @@ export const SepayWebhookSchema = z.object({
 export type CreateTopupInput = z.infer<typeof CreateTopupSchema>;
 export type WalletTransactionsQuery = z.infer<typeof WalletTransactionsQuerySchema>;
 export type SepayWebhookInput = z.infer<typeof SepayWebhookSchema>;
+

@@ -44,3 +44,4 @@ Start-Process powershell -ArgumentList "-NoExit", "-Command", "npm run dev:api"
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "npm run dev:web"
 
 Write-Host "`nDa mo 2 cua so chay Backend va Frontend thanh cong!" -ForegroundColor Green
+

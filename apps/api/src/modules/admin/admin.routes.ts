@@ -817,3 +817,4 @@ export const adminRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) 
     return reply.send({ success: true, data: logs });
   });
 };
+

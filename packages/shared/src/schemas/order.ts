@@ -35,3 +35,4 @@ export type CreateOrderInput = z.infer<typeof CreateOrderSchema>;
 export type OrdersQuery = z.infer<typeof OrdersQuerySchema>;
 export type CreateWarrantyTicketInput = z.infer<typeof CreateWarrantyTicketSchema>;
 export type ResolveWarrantyTicketInput = z.infer<typeof ResolveWarrantyTicketSchema>;
+

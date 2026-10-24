@@ -438,3 +438,4 @@ model Setting {
 
   @@map("settings")
 }
+

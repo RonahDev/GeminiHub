@@ -57,3 +57,4 @@ export const PricePreviewSchema = z.object({
 export type CreateProductInput = z.infer<typeof CreateProductSchema>;
 export type UpdateProductInput = z.infer<typeof UpdateProductSchema>;
 export type PricePreviewInput = z.infer<typeof PricePreviewSchema>;
+

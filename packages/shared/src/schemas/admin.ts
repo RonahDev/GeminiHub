@@ -50,3 +50,4 @@ export type RefundOrderInput = z.infer<typeof RefundOrderSchema>;
 export type AssignBankTxInput = z.infer<typeof AssignBankTxSchema>;
 export type PricingDefaultsInput = z.infer<typeof PricingDefaultsSchema>;
 export type GeneralSettingsInput = z.infer<typeof GeneralSettingsSchema>;
+
