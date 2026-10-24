@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest';
-import { encrypt, decrypt, maskSecret, hashSha256, computeHmacSha256 } from '../src/utils/crypto';
+import { encrypt, decrypt, maskSecret, hashSha256, computeHmacSha256 } from '../src/infrastructure/security/crypto';
 
 describe('Cryptography Utilities (NFR-06, FR-SRC-06)', () => {
   beforeAll(() => {

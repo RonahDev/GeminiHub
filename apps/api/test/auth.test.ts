@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { AuthService } from '../src/modules/auth/auth.service';
-import { hashPassword, hashToken } from '../src/utils/auth';
+import { AuthService } from '../src/application/auth/auth.service';
+import { hashPassword, hashToken } from '../src/infrastructure/security/auth';
 import { Role, UserStatus } from '@prisma/client';
 
 describe('Authentication & Login Engine (FR-AUTH-01..06, NFR-06)', () => {

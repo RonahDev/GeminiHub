@@ -1,0 +1,97 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: geminihub_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: geminihub_db
+      POSTGRES_USER: geminihub
+      POSTGRES_PASSWORD: geminihub_secret_2026
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U geminihub -d geminihub_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - geminihub_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: geminihub_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - geminihub_network
+
+  api:
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+    container_name: geminihub_api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      HOST: 0.0.0.0
+      DATABASE_URL: postgresql://geminihub:geminihub_secret_2026@postgres:5432/geminihub_db
+      REDIS_URL: redis://redis:6379
+      APP_ENCRYPTION_KEY: ${APP_ENCRYPTION_KEY:-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
+      JWT_SECRET: ${JWT_SECRET:-geminihub_enterprise_jwt_secret_2026}
+      COOKIE_SECRET: ${COOKIE_SECRET:-geminihub_enterprise_cookie_secret_2026}
+      WEB_ORIGIN: http://localhost
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - geminihub_network
+
+  web:
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+    container_name: geminihub_web
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+      NEXT_PUBLIC_API_URL: /api/v1
+    depends_on:
+      - api
+    networks:
+      - geminihub_network
+
+  nginx:
+    image: nginx:alpine
+    container_name: geminihub_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - web
+      - api
+    networks:
+      - geminihub_network
+
+networks:
+  geminihub_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:

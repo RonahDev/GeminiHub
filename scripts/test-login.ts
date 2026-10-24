@@ -1,9 +1,9 @@
 import Fastify from 'fastify';
 import cookie from '@fastify/cookie';
 import jwt from '@fastify/jwt';
-import { AuthService } from '../apps/api/src/modules/auth/auth.service';
-import { authRoutes } from '../apps/api/src/modules/auth/auth.routes';
-import { hashPassword } from '../apps/api/src/utils/auth';
+import { AuthService } from '../apps/api/src/application/auth/auth.service';
+import { authRoutes } from '../apps/api/src/presentation/routes/auth.routes';
+import { hashPassword } from '../apps/api/src/infrastructure/security/auth';
 import { Role, UserStatus } from '@geminihub/shared';
 
 (BigInt.prototype as any).toJSON = function () {

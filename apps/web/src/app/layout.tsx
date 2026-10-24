@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { AuthProvider } from '@/context/AuthContext';
-import { Navbar } from '@/components/Navbar';
-import { SmoothScroll } from '@/components/SmoothScroll';
+import { Navbar } from '@/components/layout/Navbar';
+import { Footer } from '@/components/layout/Footer';
+import { SmoothScroll } from '@/components/animations/SmoothScroll';
 import { Toaster } from 'sonner';
 
 export const metadata: Metadata = {
@@ -24,16 +25,7 @@ export default function RootLayout({
             <div className="flex-1 flex flex-col min-h-screen">
               <Navbar />
               <main className="flex-1">{children}</main>
-              <footer className="border-t border-zinc-800/80 bg-zinc-950/60 py-8 text-center text-xs text-zinc-500">
-                <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-                  <p>© 2026 GeminiHub. Bảo lưu mọi quyền.</p>
-                  <div className="flex items-center gap-6 text-zinc-400">
-                    <span>Hỗ trợ bảo hành 5 phút</span>
-                    <span>Tự động 24/7</span>
-                    <span>Thanh toán VietQR SePay</span>
-                  </div>
-                </div>
-              </footer>
+              <Footer />
             </div>
             <Toaster richColors position="top-right" theme="dark" />
           </SmoothScroll>

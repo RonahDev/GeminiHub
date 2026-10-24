@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { MockAdapter } from '../src/adapters/MockAdapter';
+import { MockAdapter } from '../src/infrastructure/adapters/MockAdapter';
 
 describe('Source Adapters (Section 8.3, FR-SRC)', () => {
   it('MockAdapter testConnection returns ok and realistic latency', async () => {

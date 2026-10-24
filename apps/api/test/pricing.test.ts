@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { PricingService, SourceCandidate } from '../src/modules/pricing/pricing.service';
+import { PricingService, SourceCandidate } from '../src/domain/pricing/pricing.service';
 import { CostBasis, PricingMode } from '@geminihub/shared';
 
 describe('Pricing Engine (FR-PRICE-01..08)', () => {
