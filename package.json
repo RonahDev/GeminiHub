@@ -1,0 +1,20 @@
+{
+  "name": "geminihub-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Website bán lại link kích hoạt Gemini tự động từ bot Telegram",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "dev:api": "npm run dev --workspace=apps/api",
+    "dev:web": "npm run dev --workspace=apps/web",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present"
+  },
+  "keywords": ["gemini", "telegram-bot", "fastify", "nextjs", "prisma"],
+  "author": "GeminiHub Team",
+  "license": "UNLICENSED"
+}

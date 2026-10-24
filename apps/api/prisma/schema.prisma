@@ -1,0 +1,440 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  STAFF
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  BANNED
+}
+
+enum WalletTxType {
+  TOPUP
+  PURCHASE
+  REFUND
+  ADJUST
+}
+
+enum TopupStatus {
+  PENDING
+  COMPLETED
+  EXPIRED
+  CANCELLED
+}
+
+enum SourceStatus {
+  ACTIVE
+  PAUSED
+  ERROR
+}
+
+enum AdapterType {
+  TELE_API
+  HTTP_CUSTOM
+  TELEGRAM_CHAT
+  MOCK
+}
+
+enum Currency {
+  VND
+  USD
+}
+
+enum RoutingStrategy {
+  PRIORITY
+  CHEAPEST
+}
+
+enum PricingMode {
+  FIXED
+  COST_PLUS
+}
+
+enum CostBasis {
+  PRIORITY
+  HIGHEST
+}
+
+enum OrderStatus {
+  PROCESSING
+  COMPLETED
+  FAILED
+  NEEDS_REVIEW
+  REFUNDED
+}
+
+enum OrderItemOrigin {
+  SOURCE
+  MANUAL
+  WARRANTY
+}
+
+enum WarrantyStatus {
+  PENDING
+  RESOLVED
+  REJECTED
+}
+
+enum WarrantyResolution {
+  REPLACED_SOURCE
+  REPLACED_MANUAL
+  REFUNDED
+  REJECTED
+}
+
+enum SourceOperation {
+  BALANCE
+  LIST
+  DETAIL
+  BUY
+}
+
+enum SourceCallResult {
+  SUCCESS
+  DEFINITE_FAIL
+  UNKNOWN
+}
+
+model User {
+  id              String       @id @default(uuid())
+  email           String       @unique
+  passwordHash    String
+  role            Role         @default(USER)
+  status          UserStatus   @default(ACTIVE)
+  balance         BigInt       @default(0)
+  emailVerifiedAt DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  sessions           Session[]
+  walletTransactions WalletTransaction[]
+  topups             Topup[]
+  orders             Order[]
+  warrantyTickets    WarrantyTicket[]
+
+  @@map("users")
+}
+
+model Session {
+  id         String    @id @default(uuid())
+  userId     String
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  ip         String?
+  userAgent  String?
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model WalletTransaction {
+  id            String       @id @default(uuid())
+  userId        String
+  type          WalletTxType
+  amount        BigInt
+  balanceBefore BigInt
+  balanceAfter  BigInt
+  refType       String?
+  refId         String?
+  note          String?
+  createdAt     DateTime     @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("wallet_transactions")
+}
+
+model Topup {
+  id           String      @id @default(uuid())
+  userId       String
+  code         String      @unique
+  amount       BigInt
+  paidAmount   BigInt      @default(0)
+  status       TopupStatus @default(PENDING)
+  providerTxId String?     @unique
+  expiresAt    DateTime
+  paidAt       DateTime?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bankTransactions BankTransaction[]
+
+  @@index([userId])
+  @@index([code])
+  @@index([status])
+  @@map("topups")
+}
+
+model BankTransaction {
+  id             String   @id @default(uuid())
+  providerTxId   String   @unique
+  amount         BigInt
+  content        String
+  matchedTopupId String?
+  rawPayload     String   @db.Text
+  createdAt      DateTime @default(now())
+
+  topup Topup? @relation(fields: [matchedTopupId], references: [id])
+
+  @@index([providerTxId])
+  @@index([matchedTopupId])
+  @@map("bank_transactions")
+}
+
+model Source {
+  id                   String       @id @default(uuid())
+  name                 String
+  adapterType          AdapterType  @default(TELE_API)
+  baseUrl              String
+  credentialsEncrypted String       @db.Text
+  config               String       @default("{}") @db.Text
+  currency             Currency     @default(VND)
+  status               SourceStatus @default(ACTIVE)
+  liveBuyEnabled       Boolean      @default(false)
+  timeoutMs            Int          @default(20000)
+  maxConcurrency       Int          @default(3)
+  lowBalanceAlert      BigInt       @default(100000)
+  syncIntervalSec      Int          @default(60)
+  balance              BigInt       @default(0)
+  balanceSyncedAt      DateTime?
+  consecutiveErrors    Int          @default(0)
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+
+  products    SourceProduct[]
+  sourceCalls SourceCall[]
+  orders      Order[]
+
+  @@map("sources")
+}
+
+model SourceProduct {
+  id          String   @id @default(uuid())
+  sourceId    String
+  externalId  String
+  name        String
+  rawPrice    Float
+  costVnd     BigInt
+  stock       Int      @default(0)
+  description String?  @db.Text
+  lastSeenAt  DateTime @default(now())
+  missing     Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  source         Source          @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  productSources ProductSource[]
+
+  @@unique([sourceId, externalId])
+  @@index([sourceId])
+  @@map("source_products")
+}
+
+model Product {
+  id                  String          @id @default(uuid())
+  slug                String          @unique
+  name                String
+  description         String          @default("") @db.Text
+  imageUrl            String?
+  warrantyMinutes     Int             @default(5)
+  mustUseImmediately Boolean         @default(true)
+  maxPerOrder         Int             @default(5)
+  showStockCount      Boolean         @default(true)
+  isActive            Boolean         @default(true)
+  sortOrder           Int             @default(0)
+  routingStrategy     RoutingStrategy @default(PRIORITY)
+  pricingMode         PricingMode     @default(COST_PLUS)
+  fixedPrice          BigInt?
+  markupPercent       Float           @default(30)
+  markupAmount        BigInt          @default(0)
+  costBasis           CostBasis       @default(PRIORITY)
+  roundingStep        Int             @default(1000)
+  minPrice            BigInt?
+  maxPrice            BigInt?
+  minMarginAmount     BigInt          @default(5000)
+  currentPrice        BigInt          @default(0)
+  pendingPrice        BigInt?
+  pausedReason        String?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  sources        ProductSource[]
+  priceHistories PriceHistory[]
+  orders         Order[]
+
+  @@index([slug])
+  @@index([isActive])
+  @@map("products")
+}
+
+model ProductSource {
+  id              String   @id @default(uuid())
+  productId       String
+  sourceProductId String
+  priority        Int      @default(1)
+  enabled         Boolean  @default(true)
+  maxCost         BigInt?
+  broken          Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  product       Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sourceProduct SourceProduct @relation(fields: [sourceProductId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, sourceProductId])
+  @@index([productId])
+  @@index([sourceProductId])
+  @@map("product_sources")
+}
+
+model PriceHistory {
+  id        String   @id @default(uuid())
+  productId String
+  oldPrice  BigInt
+  newPrice  BigInt
+  costBasis BigInt
+  reason    String
+  actorId   String?
+  createdAt DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@map("price_histories")
+}
+
+model Order {
+  id             String      @id @default(uuid())
+  code           String      @unique
+  userId         String
+  productId      String
+  quantity       Int
+  unitPrice      BigInt
+  totalPrice     BigInt
+  unitCost       BigInt
+  sourceId       String?
+  status         OrderStatus @default(PROCESSING)
+  failReason     String?     @db.Text
+  warrantyUntil  DateTime?
+  idempotencyKey String
+  completedAt    DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  user           User            @relation(fields: [userId], references: [id], onDelete: Restrict)
+  product        Product         @relation(fields: [productId], references: [id], onDelete: Restrict)
+  source         Source?         @relation(fields: [sourceId], references: [id])
+  items          OrderItem[]
+  sourceCalls    SourceCall[]
+  warrantyTicket WarrantyTicket?
+
+  @@unique([userId, idempotencyKey])
+  @@index([code])
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("orders")
+}
+
+model OrderItem {
+  id            String          @id @default(uuid())
+  orderId       String
+  linkEncrypted String          @db.Text
+  linkHash      String
+  origin        OrderItemOrigin @default(SOURCE)
+  disabledAt    DateTime?
+  createdAt     DateTime        @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([linkHash])
+  @@map("order_items")
+}
+
+model SourceCall {
+  id                String           @id @default(uuid())
+  sourceId          String
+  orderId           String?
+  operation         SourceOperation
+  externalProductId String?
+  quantity          Int?
+  nonce             String?
+  httpStatus        Int?
+  result            SourceCallResult
+  errorCode         String?
+  responseEncrypted String?          @db.Text
+  durationMs        Int
+  createdAt         DateTime         @default(now())
+
+  source Source @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  order  Order? @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([sourceId])
+  @@index([orderId])
+  @@index([createdAt])
+  @@map("source_calls")
+}
+
+model WarrantyTicket {
+  id            String              @id @default(uuid())
+  orderId       String              @unique
+  userId        String
+  reason        String              @db.Text
+  attachmentUrl String?
+  status        WarrantyStatus      @default(PENDING)
+  resolution    WarrantyResolution?
+  adminNote     String?             @db.Text
+  resolvedAt    DateTime?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@map("warranty_tickets")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  actorId   String
+  action    String
+  target    String
+  before    String?  @db.Text
+  after     String?  @db.Text
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([actorId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model Setting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String   @db.Text
+  updatedAt DateTime @updatedAt
+
+  @@map("settings")
+}
