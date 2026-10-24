@@ -159,3 +159,4 @@ export class PricingService {
     return percentChange > thresholdPercent;
   }
 }
+

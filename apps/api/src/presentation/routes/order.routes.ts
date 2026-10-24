@@ -198,3 +198,4 @@ export const orderRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) 
     return reply.status(201).send({ success: true, data: ticket });
   });
 };
+

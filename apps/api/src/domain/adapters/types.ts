@@ -10,3 +10,4 @@ export interface AdapterConfig {
   config?: Record<string, any>;
   timeoutMs?: number;
 }
+

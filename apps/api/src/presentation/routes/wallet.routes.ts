@@ -114,3 +114,4 @@ export const walletRoutes: FastifyPluginAsync = async (fastify: FastifyInstance)
     });
   });
 };
+

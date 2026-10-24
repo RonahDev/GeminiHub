@@ -51,3 +51,4 @@ USER geminihub
 EXPOSE 4000
 
 CMD ["node", "apps/api/dist/server.js"]
+

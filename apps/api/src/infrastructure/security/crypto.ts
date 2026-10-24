@@ -81,3 +81,4 @@ export function maskSecret(secret: string): string {
   const suffix = secret.slice(-4);
   return `${prefix}••••${suffix}`;
 }
+

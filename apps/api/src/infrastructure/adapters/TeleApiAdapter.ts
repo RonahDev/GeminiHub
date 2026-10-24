@@ -208,3 +208,4 @@ export class TeleApiAdapter implements SourceAdapter {
     return links;
   }
 }
+

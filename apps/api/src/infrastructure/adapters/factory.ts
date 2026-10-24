@@ -45,3 +45,4 @@ export function createSourceAdapter(source: SourceRecord): SourceAdapter {
 
   throw new Error(`Loại adapter "${source.adapterType}" chưa được hỗ trợ`);
 }
+
