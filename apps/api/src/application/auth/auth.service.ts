@@ -60,6 +60,10 @@ export class AuthService {
       throw new AppError('Tài khoản đã bị tạm khóa. Vui lòng liên hệ hỗ trợ', 403, 'ACCOUNT_BANNED');
     }
 
+    if (!user.passwordHash) {
+      throw new UnauthorizedError('Tài khoản này được đăng ký qua Google. Vui lòng đăng nhập bằng nút "Tiếp tục với Google"');
+    }
+
     const isValid = await verifyPassword(user.passwordHash, input.password);
     if (!isValid) {
       throw new UnauthorizedError('Email hoặc mật khẩu không chính xác');
@@ -91,6 +95,87 @@ export class AuthService {
         email: user.email,
         role: user.role,
         balance: Number(user.balance),
+      },
+      tokens: {
+        accessToken,
+        refreshToken: rawRefreshToken,
+      },
+    };
+  }
+
+  async loginWithGoogle(
+    googlePayload: { googleId: string; email: string; name?: string; avatarUrl?: string },
+    meta?: { ip?: string; userAgent?: string }
+  ): Promise<{ user: any; tokens: TokenPair }> {
+    const email = googlePayload.email.toLowerCase();
+
+    // 1. Check existing user by googleId or email
+    let user = await this.prisma.user.findFirst({
+      where: {
+        OR: [{ googleId: googlePayload.googleId }, { email }],
+      },
+    });
+
+    if (user) {
+      if (!user.googleId || !user.avatarUrl) {
+        user = await this.prisma.user.update({
+          where: { id: user.id },
+          data: {
+            googleId: user.googleId || googlePayload.googleId,
+            avatarUrl: user.avatarUrl || googlePayload.avatarUrl,
+            emailVerifiedAt: user.emailVerifiedAt || new Date(),
+          },
+        });
+      }
+    } else {
+      const count = await this.prisma.user.count();
+      const role = count === 0 ? Role.ADMIN : Role.USER;
+
+      user = await this.prisma.user.create({
+        data: {
+          email,
+          googleId: googlePayload.googleId,
+          avatarUrl: googlePayload.avatarUrl,
+          provider: 'GOOGLE',
+          role,
+          status: UserStatus.ACTIVE,
+          balance: BigInt(0),
+          emailVerifiedAt: new Date(),
+        },
+      });
+    }
+
+    if (user.status === UserStatus.BANNED) {
+      throw new AppError('Tài khoản đã bị tạm khóa. Vui lòng liên hệ hỗ trợ', 403, 'ACCOUNT_BANNED');
+    }
+
+    const rawRefreshToken = generateRandomToken(40);
+    const tokenHash = hashToken(rawRefreshToken);
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+    await this.prisma.session.create({
+      data: {
+        userId: user.id,
+        tokenHash,
+        expiresAt,
+        ip: meta?.ip,
+        userAgent: meta?.userAgent,
+      },
+    });
+
+    const accessToken = this.signJwt({
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+    });
+
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        balance: Number(user.balance),
+        avatarUrl: user.avatarUrl,
       },
       tokens: {
         accessToken,
@@ -192,6 +277,9 @@ export class AuthService {
 
   async changePassword(userId: string, input: ChangePasswordInput) {
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    if (!user.passwordHash) {
+      throw new UnauthorizedError('Tài khoản đăng nhập qua Google không dùng mật khẩu trực tiếp');
+    }
     const isOldValid = await verifyPassword(user.passwordHash, input.currentPassword);
     if (!isOldValid) {
       throw new UnauthorizedError('Mật khẩu hiện tại không chính xác');

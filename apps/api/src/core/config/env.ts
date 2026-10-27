@@ -1,5 +1,8 @@
 import dotenv from 'dotenv';
+import path from 'path';
+
 dotenv.config();
+dotenv.config({ path: path.resolve(process.cwd(), 'apps/api/.env') });
 import { z } from 'zod';
 
 const EnvSchema = z.object({
@@ -16,6 +19,7 @@ const EnvSchema = z.object({
   ALLOW_LIVE_BUY: z.string().default('false'),
   TELEGRAM_BOT_TOKEN: z.string().optional(),
   TELEGRAM_ADMIN_CHAT_ID: z.string().optional(),
+  GOOGLE_CLIENT_ID: z.string().optional(),
 });
 
 function parseEnv() {
@@ -33,6 +37,7 @@ function parseEnv() {
         COOKIE_SECRET: 'test-cookie-secret-key-2026',
         WEB_ORIGIN: 'http://localhost:3000',
         ALLOW_LIVE_BUY: 'false',
+        GOOGLE_CLIENT_ID: undefined,
       };
     }
     console.error('❌ Cấu hình biến môi trường không hợp lệ:');

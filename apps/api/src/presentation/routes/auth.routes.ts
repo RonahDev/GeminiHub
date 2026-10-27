@@ -2,15 +2,54 @@ import { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { AuthService } from '../../application/auth/auth.service';
 import { prisma } from '../../infrastructure/database/prisma';
 import { requireAuth } from '../middlewares/auth.guard';
+import { verifyGoogleToken } from '../../infrastructure/security/google';
 import {
   RegisterSchema,
   LoginSchema,
+  GoogleLoginSchema,
   ChangePasswordSchema,
   ForgotPasswordSchema,
 } from '@geminihub/shared';
 
 export const authRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) => {
   const authService = new AuthService(prisma, (payload) => fastify.jwt.sign(payload, { expiresIn: '15m' }));
+
+  // Google OAuth SSO
+  fastify.post('/auth/google', async (req, reply) => {
+    const parseRes = GoogleLoginSchema.safeParse(req.body);
+    if (!parseRes.success) {
+      return reply.status(400).send({
+        error: { code: 'VALIDATION_ERROR', message: parseRes.error.errors[0].message },
+      });
+    }
+
+    try {
+      const googlePayload = await verifyGoogleToken(parseRes.data.credential);
+      const ip = req.ip;
+      const userAgent = req.headers['user-agent'];
+      const result = await authService.loginWithGoogle(googlePayload, { ip, userAgent });
+
+      reply.setCookie('refreshToken', result.tokens.refreshToken, {
+        path: '/api/v1/auth',
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 30 * 24 * 60 * 60,
+      });
+
+      return reply.send({
+        success: true,
+        data: {
+          user: result.user,
+          accessToken: result.tokens.accessToken,
+        },
+      });
+    } catch (err: any) {
+      return reply.status(err.statusCode || 401).send({
+        error: { code: err.code || 'GOOGLE_LOGIN_FAILED', message: err.message },
+      });
+    }
+  });
 
   // FR-AUTH-01: Register
   fastify.post('/auth/register', async (req, reply) => {
@@ -166,6 +205,8 @@ export const authRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) =
         role: true,
         balance: true,
         status: true,
+        avatarUrl: true,
+        provider: true,
         createdAt: true,
       },
     });

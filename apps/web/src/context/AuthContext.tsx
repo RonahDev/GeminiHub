@@ -8,6 +8,8 @@ export interface User {
   email: string;
   role: 'USER' | 'STAFF' | 'ADMIN';
   balance: number;
+  avatarUrl?: string;
+  provider?: string;
 }
 
 interface AuthContextType {

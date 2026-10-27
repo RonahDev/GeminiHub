@@ -33,9 +33,14 @@ export const ResetPasswordSchema = z.object({
     .regex(/^(?=.*[a-zA-Z])(?=.*\d)/, 'Mật khẩu mới phải bao gồm cả chữ và số'),
 });
 
+export const GoogleLoginSchema = z.object({
+  credential: z.string().min(1, 'Token Google không được để trống'),
+});
+
 export type RegisterInput = z.infer<typeof RegisterSchema>;
 export type LoginInput = z.infer<typeof LoginSchema>;
 export type ChangePasswordInput = z.infer<typeof ChangePasswordSchema>;
 export type ForgotPasswordInput = z.infer<typeof ForgotPasswordSchema>;
 export type ResetPasswordInput = z.infer<typeof ResetPasswordSchema>;
+export type GoogleLoginInput = z.infer<typeof GoogleLoginSchema>;
 

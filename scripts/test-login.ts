@@ -1,9 +1,11 @@
+process.env.NODE_ENV = 'test';
 import Fastify from 'fastify';
 import cookie from '@fastify/cookie';
 import jwt from '@fastify/jwt';
 import { AuthService } from '../apps/api/src/application/auth/auth.service';
 import { authRoutes } from '../apps/api/src/presentation/routes/auth.routes';
 import { hashPassword } from '../apps/api/src/infrastructure/security/auth';
+import { verifyGoogleToken } from '../apps/api/src/infrastructure/security/google';
 import { Role, UserStatus } from '@geminihub/shared';
 
 (BigInt.prototype as any).toJSON = function () {
@@ -17,6 +19,21 @@ const mockSessions: any[] = [];
 const mockPrisma: any = {
   user: {
     count: async () => mockUsers.length,
+    findFirst: async ({ where }: any) => {
+      if (where?.OR) {
+        for (const cond of where.OR) {
+          const found = mockUsers.find((u) => {
+            if (cond.googleId && u.googleId === cond.googleId) return true;
+            if (cond.email && u.email === cond.email.toLowerCase()) return true;
+            return false;
+          });
+          if (found) return found;
+        }
+      }
+      if (where?.email) return mockUsers.find((u) => u.email === where.email.toLowerCase()) || null;
+      if (where?.id) return mockUsers.find((u) => u.id === where.id) || null;
+      return null;
+    },
     findUnique: async ({ where }: any) => {
       if (where.email) return mockUsers.find((u) => u.email === where.email.toLowerCase()) || null;
       if (where.id) return mockUsers.find((u) => u.id === where.id) || null;
@@ -108,7 +125,13 @@ async function runLoginVerification() {
         path: '/api/v1/auth',
         httpOnly: true,
       });
-      return reply.send({ success: true, data: result });
+      return reply.send({
+        success: true,
+        data: {
+          user: result.user,
+          accessToken: result.tokens.accessToken,
+        },
+      });
     } catch (err: any) {
       return reply.status(401).send({ error: { code: 'LOGIN_FAILED', message: err.message } });
     }
@@ -121,6 +144,30 @@ async function runLoginVerification() {
       return reply.send({ success: true, data: user });
     } catch {
       return reply.status(401).send({ error: { message: 'Unauthorized' } });
+    }
+  });
+
+  app.post('/api/v1/auth/google', async (req, reply) => {
+    const { credential } = req.body as any;
+    try {
+      const googlePayload = await verifyGoogleToken(credential);
+      const result = await authService.loginWithGoogle(googlePayload, {
+        ip: req.ip,
+        userAgent: req.headers['user-agent'],
+      });
+      reply.setCookie('refreshToken', result.tokens.refreshToken, {
+        path: '/api/v1/auth',
+        httpOnly: true,
+      });
+      return reply.send({
+        success: true,
+        data: {
+          user: result.user,
+          accessToken: result.tokens.accessToken,
+        },
+      });
+    } catch (err: any) {
+      return reply.status(401).send({ error: { code: 'GOOGLE_LOGIN_FAILED', message: err.message } });
     }
   });
 
@@ -140,7 +187,7 @@ async function runLoginVerification() {
   if (resSuccess.statusCode === 200 && dataSuccess.success) {
     console.log('  -> ĐĂNG NHẬP THÀNH CÔNG!');
     console.log(`  - User: ${dataSuccess.data.user.email} (Role: ${dataSuccess.data.user.role})`);
-    console.log(`  - Access Token (JWT): ${dataSuccess.data.tokens.accessToken.slice(0, 35)}...`);
+    console.log(`  - Access Token (JWT): ${dataSuccess.data.accessToken.slice(0, 35)}...`);
     console.log(`  - Set-Cookie (Refresh Token HttpOnly): ${resSuccess.headers['set-cookie']?.toString().slice(0, 50)}...`);
   } else {
     console.error('  -> THẤT BẠI:', dataSuccess);
@@ -171,7 +218,7 @@ async function runLoginVerification() {
     method: 'GET',
     url: '/api/v1/me',
     headers: {
-      authorization: `Bearer ${dataSuccess.data.tokens.accessToken}`,
+      authorization: `Bearer ${dataSuccess.data.accessToken}`,
     },
   });
 
@@ -182,6 +229,28 @@ async function runLoginVerification() {
     console.log(`  - Email: ${dataMe.data.email}`);
     console.log(`  - Số dư: ${Number(dataMe.data.balance).toLocaleString('vi-VN')} đ`);
     console.log(`  - Role: ${dataMe.data.role}`);
+  }
+
+  // TEST 4: Google OAuth 2.0 Single Sign-On
+  console.log('\n▶ [Test 4] Đăng nhập bằng Gmail cá nhân (Google OAuth SSO: ronahdev@gmail.com)...');
+  const resGoogle = await app.inject({
+    method: 'POST',
+    url: '/api/v1/auth/google',
+    payload: {
+      credential: 'mock-google:ronahdev@gmail.com:sub-google-ronahdev-2026',
+    },
+  });
+
+  console.log(`  HTTP Status: ${resGoogle.statusCode}`);
+  const dataGoogle = JSON.parse(resGoogle.body);
+  if (resGoogle.statusCode === 200 && dataGoogle.success) {
+    console.log('  -> ĐĂNG NHẬP GOOGLE THÀNH CÔNG!');
+    console.log(`  - Email: ${dataGoogle.data.user.email}`);
+    console.log(`  - Google User ID: ronahdev@gmail.com`);
+    console.log(`  - Role: ${dataGoogle.data.user.role}`);
+    console.log(`  - Access Token: ${dataGoogle.data.accessToken.slice(0, 35)}...`);
+  } else {
+    console.error('  -> LỖI ĐĂNG NHẬP GOOGLE:', dataGoogle);
   }
 
   console.log('\n=============================================================');

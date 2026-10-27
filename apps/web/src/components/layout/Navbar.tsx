@@ -134,13 +134,18 @@ export function Navbar() {
               </div>
 
               {/* User Dropdown / Profile */}
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1.5">
                 <Link
                   href="/profile"
-                  className="p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800/80 transition-colors"
-                  title="Hồ sơ & Đổi mật khẩu"
+                  className="flex items-center justify-center h-8 w-8 rounded-full overflow-hidden border border-zinc-700/80 hover:border-zinc-500 transition-colors bg-zinc-900"
+                  title={`Hồ sơ: ${user.email}`}
                 >
-                  <UserIcon className="h-4 w-4" />
+                  {user.avatarUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={user.avatarUrl} alt="Avatar" className="h-full w-full object-cover" />
+                  ) : (
+                    <UserIcon className="h-4 w-4 text-zinc-400" />
+                  )}
                 </Link>
                 <button
                   onClick={logout}

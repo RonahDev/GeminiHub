@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
 import { Sparkles, Loader2, ArrowRight } from 'lucide-react';
+import { GoogleLoginButton } from './GoogleLoginButton';
 
 export function RegisterForm() {
   const router = useRouter();
@@ -106,6 +107,19 @@ export function RegisterForm() {
           )}
         </button>
       </form>
+
+      <div className="relative my-6">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-zinc-800" />
+        </div>
+        <div className="relative flex justify-center text-[11px] uppercase">
+          <span className="bg-zinc-900/90 px-3 text-zinc-500 font-semibold tracking-wider">
+            Hoặc đăng ký nhanh bằng
+          </span>
+        </div>
+      </div>
+
+      <GoogleLoginButton buttonText="Đăng ký bằng Google" />
 
       <div className="mt-6 text-center text-xs text-zinc-400">
         Đã có tài khoản?{' '}

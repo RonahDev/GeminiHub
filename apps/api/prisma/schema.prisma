@@ -108,7 +108,10 @@ enum SourceCallResult {
 model User {
   id              String       @id @default(uuid())
   email           String       @unique
-  passwordHash    String
+  passwordHash    String?
+  googleId        String?      @unique
+  avatarUrl       String?
+  provider        String       @default("LOCAL")
   role            Role         @default(USER)
   status          UserStatus   @default(ACTIVE)
   balance         BigInt       @default(0)

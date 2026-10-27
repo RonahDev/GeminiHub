@@ -7,6 +7,7 @@ import { api } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
 import { Sparkles, Loader2, ArrowRight } from 'lucide-react';
+import { GoogleLoginButton } from './GoogleLoginButton';
 
 export function LoginForm() {
   const router = useRouter();
@@ -97,6 +98,19 @@ export function LoginForm() {
           )}
         </button>
       </form>
+
+      <div className="relative my-6">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-zinc-800" />
+        </div>
+        <div className="relative flex justify-center text-[11px] uppercase">
+          <span className="bg-zinc-900/90 px-3 text-zinc-500 font-semibold tracking-wider">
+            Hoặc tiếp tục với
+          </span>
+        </div>
+      </div>
+
+      <GoogleLoginButton buttonText="Đăng nhập bằng Google" />
 
       <div className="mt-6 text-center text-xs text-zinc-400">
         Chưa có tài khoản?{' '}

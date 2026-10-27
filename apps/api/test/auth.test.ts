@@ -16,6 +16,21 @@ describe('Authentication & Login Engine (FR-AUTH-01..06, NFR-06)', () => {
     mockPrisma = {
       user: {
         count: async () => mockUsers.length,
+        findFirst: async ({ where }: any) => {
+          if (where?.OR) {
+            for (const cond of where.OR) {
+              const found = mockUsers.find((u) => {
+                if (cond.googleId && u.googleId === cond.googleId) return true;
+                if (cond.email && u.email === cond.email.toLowerCase()) return true;
+                return false;
+              });
+              if (found) return found;
+            }
+          }
+          if (where?.email) return mockUsers.find((u) => u.email === where.email.toLowerCase()) || null;
+          if (where?.id) return mockUsers.find((u) => u.id === where.id) || null;
+          return null;
+        },
         findUnique: async ({ where }: any) => {
           if (where.email) return mockUsers.find((u) => u.email === where.email.toLowerCase()) || null;
           if (where.id) return mockUsers.find((u) => u.id === where.id) || null;
@@ -239,6 +254,61 @@ describe('Authentication & Login Engine (FR-AUTH-01..06, NFR-06)', () => {
     // New password works
     const newLogin = await authService.login({ email: 'user@example.com', password: 'NewPassword999' });
     expect(newLogin.user.email).toBe('user@example.com');
+  });
+
+  describe('Google OAuth 2.0 Single Sign-On', () => {
+    it('creates a new user and session upon first Google login', async () => {
+      const result = await authService.loginWithGoogle({
+        googleId: 'google-sub-999',
+        email: 'john.doe@gmail.com',
+        name: 'John Doe',
+        avatarUrl: 'https://lh3.googleusercontent.com/a/avatar',
+      });
+
+      expect(result.user.email).toBe('john.doe@gmail.com');
+      expect(result.tokens.accessToken).toBeDefined();
+      expect(result.tokens.refreshToken).toBeDefined();
+      expect(mockUsers.length).toBe(1);
+      expect(mockUsers[0].googleId).toBe('google-sub-999');
+      expect(mockUsers[0].provider).toBe('GOOGLE');
+    });
+
+    it('links googleId if user previously registered with same email', async () => {
+      await authService.register({
+        email: 'existing@gmail.com',
+        password: 'Password123',
+      });
+
+      expect(mockUsers[0].googleId).toBeUndefined();
+
+      const result = await authService.loginWithGoogle({
+        googleId: 'google-sub-existing',
+        email: 'existing@gmail.com',
+        avatarUrl: 'https://lh3.googleusercontent.com/avatar',
+      });
+
+      expect(result.user.email).toBe('existing@gmail.com');
+      expect(mockUsers[0].googleId).toBe('google-sub-existing');
+      expect(mockUsers.length).toBe(1); // No duplicate user created
+    });
+
+    it('rejects Google login if user status is BANNED', async () => {
+      const user = await mockPrisma.user.create({
+        data: {
+          email: 'banned@gmail.com',
+          status: UserStatus.BANNED,
+          balance: BigInt(0),
+          googleId: 'banned-sub',
+        },
+      });
+
+      await expect(
+        authService.loginWithGoogle({
+          googleId: 'banned-sub',
+          email: 'banned@gmail.com',
+        })
+      ).rejects.toThrow('Tài khoản đã bị tạm khóa');
+    });
   });
 });
 
