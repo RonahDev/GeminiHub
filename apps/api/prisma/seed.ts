@@ -1,6 +1,6 @@
 import { PrismaClient, Role, UserStatus, AdapterType, SourceStatus } from '@prisma/client';
-import { hashPassword } from '../src/utils/auth';
-import { encrypt } from '../src/utils/crypto';
+import { hashPassword } from '../src/infrastructure/security/auth';
+import { encrypt } from '../src/infrastructure/security/crypto';
 
 process.env.APP_ENCRYPTION_KEY =
   process.env.APP_ENCRYPTION_KEY ||
