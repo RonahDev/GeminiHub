@@ -12,6 +12,8 @@
     "dev:api": "npm run dev --workspace=apps/api",
     "dev:web": "npm run dev --workspace=apps/web",
     "test": "npm run test --workspaces --if-present",
+    "test:auth": "tsx scripts/test-login.ts",
+    "test:e2e": "tsx scripts/test-all-features.ts",
     "lint": "npm run lint --workspaces --if-present"
   },
   "keywords": ["gemini", "telegram-bot", "fastify", "nextjs", "prisma"],
