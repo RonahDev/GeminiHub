@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { formatVnd } from '@/lib/utils';
+import { useSmoothScroll } from '@/components/animations/SmoothScroll';
 import { toast } from 'sonner';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -49,6 +50,7 @@ interface Product {
 export default function HomePage() {
   const router = useRouter();
   const { user, refreshUser } = useAuth();
+  const { scrollTo } = useSmoothScroll();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -57,6 +59,7 @@ export default function HomePage() {
   const heroBadgeRef = useRef<HTMLDivElement>(null);
   const heroTitleRef = useRef<HTMLHeadingElement>(null);
   const heroDescRef = useRef<HTMLParagraphElement>(null);
+  const heroCtaRef = useRef<HTMLDivElement>(null);
   const heroPillsRef = useRef<HTMLDivElement>(null);
   const statsContainerRef = useRef<HTMLDivElement>(null);
   const productSectionRef = useRef<HTMLDivElement>(null);
@@ -112,25 +115,48 @@ export default function HomePage() {
     () => {
       gsap.registerPlugin(ScrollTrigger);
 
-      // 1. Ambient Background Glow Orbs floating animation
+      // 1. Ambient Background Glow Orbs floating + parallax scroll effect
       gsap.to('.ambient-glow-1', {
-        x: '+=60',
-        y: '+=40',
-        scale: 1.15,
-        duration: 7,
+        x: '+=50',
+        y: '+=35',
+        scale: 1.12,
+        duration: 8,
         repeat: -1,
         yoyo: true,
         ease: 'sine.inOut',
       });
 
       gsap.to('.ambient-glow-2', {
-        x: '-=50',
-        y: '-=30',
-        scale: 1.2,
-        duration: 9,
+        x: '-=45',
+        y: '-=25',
+        scale: 1.15,
+        duration: 9.5,
         repeat: -1,
         yoyo: true,
         ease: 'sine.inOut',
+      });
+
+      // Subtle parallax on ambient glow elements during scrolling
+      gsap.to('.ambient-glow-1', {
+        scrollTrigger: {
+          trigger: containerRef.current,
+          start: 'top top',
+          end: 'bottom bottom',
+          scrub: 1.5,
+        },
+        y: 180,
+        ease: 'none',
+      });
+
+      gsap.to('.ambient-glow-2', {
+        scrollTrigger: {
+          trigger: containerRef.current,
+          start: 'top top',
+          end: 'bottom bottom',
+          scrub: 2,
+        },
+        y: -140,
+        ease: 'none',
       });
 
       // 2. Hero entrance staggered timeline
@@ -138,9 +164,9 @@ export default function HomePage() {
 
       if (heroBadgeRef.current) {
         heroTl.from(heroBadgeRef.current, {
-          y: -20,
+          y: -25,
           opacity: 0,
-          scale: 0.85,
+          scale: 0.88,
           duration: 0.7,
         });
       }
@@ -149,11 +175,11 @@ export default function HomePage() {
         heroTl.from(
           heroTitleRef.current,
           {
-            y: 35,
+            y: 40,
             opacity: 0,
             duration: 0.9,
           },
-          '-=0.4'
+          '-=0.45'
         );
       }
 
@@ -169,16 +195,30 @@ export default function HomePage() {
         );
       }
 
+      if (heroCtaRef.current) {
+        heroTl.from(
+          heroCtaRef.current.children,
+          {
+            y: 20,
+            opacity: 0,
+            scale: 0.95,
+            stagger: 0.12,
+            duration: 0.7,
+          },
+          '-=0.55'
+        );
+      }
+
       if (heroPillsRef.current) {
         heroTl.from(
           heroPillsRef.current.children,
           {
-            y: 20,
+            y: 18,
             opacity: 0,
-            stagger: 0.12,
+            stagger: 0.1,
             duration: 0.6,
           },
-          '-=0.5'
+          '-=0.4'
         );
       }
 
@@ -203,7 +243,7 @@ export default function HomePage() {
               val2: 3,
               val3: 24,
               val4: 100,
-              duration: 2,
+              duration: 2.2,
               ease: 'power2.out',
               onUpdate: () => {
                 if (stat1Ref.current) stat1Ref.current.textContent = `${stats.val1.toFixed(1)}%`;
@@ -225,9 +265,11 @@ export default function HomePage() {
           },
           y: 45,
           opacity: 0,
-          stagger: 0.15,
+          scale: 0.96,
+          stagger: 0.14,
           duration: 0.8,
           ease: 'power3.out',
+          clearProps: 'transform,opacity',
         });
       }
 
@@ -236,13 +278,14 @@ export default function HomePage() {
         gsap.from('.feature-card', {
           scrollTrigger: {
             trigger: featuresSectionRef.current,
-            start: 'top 80%',
+            start: 'top 82%',
           },
           y: 35,
           opacity: 0,
           stagger: 0.12,
           duration: 0.7,
           ease: 'power3.out',
+          clearProps: 'transform,opacity',
         });
       }
 
@@ -257,6 +300,7 @@ export default function HomePage() {
           opacity: 0,
           duration: 0.8,
           ease: 'power3.out',
+          clearProps: 'transform,opacity',
         });
       }
     },
@@ -266,28 +310,33 @@ export default function HomePage() {
   // Animate product cards when products are loaded
   useEffect(() => {
     if (!loading && products.length > 0 && productSectionRef.current) {
-      gsap.from('.product-card', {
-        scrollTrigger: {
-          trigger: productSectionRef.current,
-          start: 'top 80%',
-        },
-        y: 40,
-        opacity: 0,
-        scale: 0.95,
-        stagger: 0.15,
-        duration: 0.8,
-        ease: 'power3.out',
-      });
+      gsap.fromTo(
+        '.product-card',
+        { y: 40, opacity: 0, scale: 0.95 },
+        {
+          y: 0,
+          opacity: 1,
+          scale: 1,
+          stagger: 0.14,
+          duration: 0.75,
+          ease: 'power3.out',
+          clearProps: 'transform,opacity',
+          scrollTrigger: {
+            trigger: productSectionRef.current,
+            start: 'top 80%',
+          },
+        }
+      );
     }
   }, [loading, products]);
 
-  // Animate Modal Pop-in
+  // Animate Modal Pop-in with smooth elastic entrance
   useEffect(() => {
     if (selectedProduct && modalRef.current) {
       gsap.fromTo(
         modalRef.current,
-        { scale: 0.9, opacity: 0, y: 20 },
-        { scale: 1, opacity: 1, y: 0, duration: 0.4, ease: 'back.out(1.5)' }
+        { scale: 0.9, opacity: 0, y: 25 },
+        { scale: 1, opacity: 1, y: 0, duration: 0.45, ease: 'back.out(1.4)' }
       );
     }
   }, [selectedProduct]);
@@ -350,10 +399,10 @@ export default function HomePage() {
 
   return (
     <div ref={containerRef} className="relative overflow-hidden">
-      {/* Dynamic Ambient Background Glow Elements (GSAP Animated) */}
-      <div className="ambient-glow-1 pointer-events-none absolute -top-40 left-1/4 h-[550px] w-[550px] rounded-full bg-blue-600/15 blur-[140px]" />
-      <div className="ambient-glow-2 pointer-events-none absolute top-96 right-10 h-[500px] w-[500px] rounded-full bg-purple-600/15 blur-[150px]" />
-      <div className="pointer-events-none absolute bottom-96 left-10 h-[450px] w-[450px] rounded-full bg-indigo-600/10 blur-[130px]" />
+      {/* Dynamic Ambient Background Glow Elements (GSAP Animated + Parallax) */}
+      <div className="ambient-glow-1 pointer-events-none absolute -top-40 left-1/4 h-[550px] w-[550px] rounded-full bg-blue-600/15 blur-[140px] gpu-accelerated" />
+      <div className="ambient-glow-2 pointer-events-none absolute top-96 right-10 h-[500px] w-[500px] rounded-full bg-purple-600/15 blur-[150px] gpu-accelerated" />
+      <div className="pointer-events-none absolute bottom-96 left-10 h-[450px] w-[450px] rounded-full bg-indigo-600/10 blur-[130px] gpu-accelerated" />
 
       <div className="relative mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         {/* ==================================================== */}
@@ -386,6 +435,27 @@ export default function HomePage() {
               Hệ thống bán lại link kích hoạt tài khoản Google Gemini tự động. Giao link tức thời sau khi mua, tự động failover giữa các nguồn Telegram, bảo vệ an toàn số dư ví và chính sách bảo hành 5 phút uy tín.
             </p>
 
+            {/* Call to action buttons */}
+            <div ref={heroCtaRef} className="mt-8 flex flex-wrap items-center gap-4">
+              <button
+                onClick={() => scrollTo('#products', { offset: -70 })}
+                className="group relative inline-flex items-center gap-2.5 overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 px-6 sm:px-7 py-3 sm:py-3.5 text-xs sm:text-sm font-bold text-white shadow-xl shadow-indigo-600/30 transition-all duration-300 hover:scale-105 hover:shadow-indigo-500/50 active:scale-95"
+              >
+                <div className="absolute inset-0 w-1/2 h-full bg-white/20 skew-x-12 -translate-x-full group-hover:translate-x-[300%] transition-transform duration-1000 ease-out" />
+                <Sparkles className="h-4 w-4 text-blue-200" />
+                <span>Khám Phá Các Gói Gemini</span>
+                <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+              </button>
+
+              <Link
+                href="/topup"
+                className="inline-flex items-center gap-2 rounded-2xl border border-zinc-700/80 bg-zinc-900/80 px-5 sm:px-6 py-3 sm:py-3.5 text-xs sm:text-sm font-bold text-zinc-200 backdrop-blur-md transition-all duration-300 hover:border-zinc-500 hover:bg-zinc-800 hover:text-white hover:scale-105 active:scale-95"
+              >
+                <Wallet className="h-4 w-4 text-purple-400" />
+                <span>Nạp Tiền VietQR Tự Động</span>
+              </Link>
+            </div>
+
             {/* Feature Pills */}
             <div
               ref={heroPillsRef}
@@ -411,7 +481,7 @@ export default function HomePage() {
           ref={statsContainerRef}
           className="mb-20 grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6"
         >
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6 text-center backdrop-blur-sm hover:border-zinc-700 transition-colors">
+          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6 text-center backdrop-blur-sm hover:border-zinc-700 hover:scale-[1.02] transition-all duration-300">
             <span
               ref={stat1Ref}
               className="block text-3xl sm:text-4xl font-extrabold text-blue-400 font-mono"
@@ -423,7 +493,7 @@ export default function HomePage() {
             </span>
           </div>
 
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6 text-center backdrop-blur-sm hover:border-zinc-700 transition-colors">
+          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6 text-center backdrop-blur-sm hover:border-zinc-700 hover:scale-[1.02] transition-all duration-300">
             <span
               ref={stat2Ref}
               className="block text-3xl sm:text-4xl font-extrabold text-indigo-400 font-mono"
@@ -435,7 +505,7 @@ export default function HomePage() {
             </span>
           </div>
 
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6 text-center backdrop-blur-sm hover:border-zinc-700 transition-colors">
+          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6 text-center backdrop-blur-sm hover:border-zinc-700 hover:scale-[1.02] transition-all duration-300">
             <span
               ref={stat3Ref}
               className="block text-3xl sm:text-4xl font-extrabold text-purple-400 font-mono"
@@ -447,7 +517,7 @@ export default function HomePage() {
             </span>
           </div>
 
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6 text-center backdrop-blur-sm hover:border-zinc-700 transition-colors">
+          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/50 p-6 text-center backdrop-blur-sm hover:border-zinc-700 hover:scale-[1.02] transition-all duration-300">
             <span
               ref={stat4Ref}
               className="block text-3xl sm:text-4xl font-extrabold text-emerald-400 font-mono"
@@ -463,7 +533,7 @@ export default function HomePage() {
         {/* ==================================================== */}
         {/* 3. PRODUCT LIST SECTION */}
         {/* ==================================================== */}
-        <section ref={productSectionRef} className="mb-20">
+        <section id="products" ref={productSectionRef} className="mb-20 scroll-mt-24">
           <div className="mb-8 flex flex-col sm:flex-row sm:items-end justify-between gap-3">
             <div>
               <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-blue-400 mb-1">
@@ -493,7 +563,7 @@ export default function HomePage() {
                 return (
                   <div
                     key={prod.id}
-                    className="product-card group relative flex flex-col justify-between rounded-3xl border border-zinc-800 bg-zinc-900/70 p-7 transition-all duration-300 hover:border-blue-500/50 hover:bg-zinc-900 hover:shadow-2xl hover:shadow-blue-500/10 hover:-translate-y-1"
+                    className="product-card group relative flex flex-col justify-between rounded-3xl border border-zinc-800 bg-zinc-900/70 p-7 transition-all duration-300 hover:border-blue-500/50 hover:bg-zinc-900 hover:shadow-2xl hover:shadow-blue-500/10 hover:-translate-y-1.5"
                   >
                     <div>
                       {/* Badges */}
@@ -565,7 +635,7 @@ export default function HomePage() {
                       ) : (
                         <button
                           onClick={() => handleOpenBuyModal(prod)}
-                          className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 py-3 text-xs font-bold text-white transition-all shadow-lg shadow-indigo-600/20 hover:scale-[1.02]"
+                          className="w-full flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 py-3 text-xs font-bold text-white transition-all shadow-lg shadow-indigo-600/20 hover:scale-[1.02] active:scale-[0.98]"
                         >
                           <span>Mua Ngay Tức Thời</span>
                           <ChevronRight className="h-4 w-4" />
@@ -598,7 +668,7 @@ export default function HomePage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {/* Step 1 */}
-            <div className="step-card rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6 relative">
+            <div className="step-card rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6 relative hover:border-zinc-700 hover:scale-[1.02] transition-all duration-300">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/20 text-blue-400 font-black text-sm mb-4">
                 01
               </div>
@@ -609,7 +679,7 @@ export default function HomePage() {
             </div>
 
             {/* Step 2 */}
-            <div className="step-card rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6 relative">
+            <div className="step-card rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6 relative hover:border-zinc-700 hover:scale-[1.02] transition-all duration-300">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500/20 text-indigo-400 font-black text-sm mb-4">
                 02
               </div>
@@ -620,7 +690,7 @@ export default function HomePage() {
             </div>
 
             {/* Step 3 */}
-            <div className="step-card rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6 relative">
+            <div className="step-card rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6 relative hover:border-zinc-700 hover:scale-[1.02] transition-all duration-300">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-500/20 text-purple-400 font-black text-sm mb-4">
                 03
               </div>
@@ -631,7 +701,7 @@ export default function HomePage() {
             </div>
 
             {/* Step 4 */}
-            <div className="step-card rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6 relative">
+            <div className="step-card rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6 relative hover:border-zinc-700 hover:scale-[1.02] transition-all duration-300">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-400 font-black text-sm mb-4">
                 04
               </div>
@@ -732,7 +802,7 @@ export default function HomePage() {
               return (
                 <div
                   key={idx}
-                  className="rounded-2xl border border-zinc-800 bg-zinc-900/60 overflow-hidden transition-all"
+                  className="rounded-2xl border border-zinc-800 bg-zinc-900/60 overflow-hidden transition-all duration-300"
                 >
                   <button
                     onClick={() => setOpenFaq(isOpen ? null : idx)}
@@ -746,7 +816,7 @@ export default function HomePage() {
                     />
                   </button>
                   {isOpen && (
-                    <div className="p-5 pt-0 text-xs text-zinc-300 leading-relaxed border-t border-zinc-800/60">
+                    <div className="p-5 pt-0 text-xs text-zinc-300 leading-relaxed border-t border-zinc-800/60 animate-fadeIn">
                       {faq.a}
                     </div>
                   )}

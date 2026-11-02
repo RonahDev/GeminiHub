@@ -4,6 +4,7 @@ import React, { useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
+import { useSmoothScroll } from '@/components/animations/SmoothScroll';
 import { formatVnd } from '@/lib/utils';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -21,8 +22,16 @@ import {
 export function Navbar() {
   const pathname = usePathname();
   const { user, isAdmin, logout } = useAuth();
+  const { scrollTo } = useSmoothScroll();
   const headerRef = useRef<HTMLElement>(null);
   const logoRef = useRef<HTMLDivElement>(null);
+
+  const handleProductsClick = (e: React.MouseEvent) => {
+    if (pathname === '/') {
+      e.preventDefault();
+      scrollTo('#products', { offset: -70 });
+    }
+  };
 
   useGSAP(
     () => {
@@ -73,6 +82,7 @@ export function Navbar() {
           <nav className="hidden md:flex items-center gap-5 text-xs font-semibold uppercase tracking-wider">
             <Link
               href="/"
+              onClick={handleProductsClick}
               className={`transition-colors hover:text-white ${
                 pathname === '/' ? 'text-white' : 'text-zinc-400'
               }`}
