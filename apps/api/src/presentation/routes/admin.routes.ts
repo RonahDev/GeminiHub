@@ -47,6 +47,12 @@ export const adminRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) 
     if (query.status) where.status = query.status;
     if (query.productId) where.productId = query.productId;
     if (query.sourceId) where.sourceId = query.sourceId;
+    if (query.userId) where.userId = query.userId;
+    if (query.fromDate || query.toDate) {
+      where.createdAt = {};
+      if (query.fromDate) where.createdAt.gte = new Date(query.fromDate);
+      if (query.toDate) where.createdAt.lte = new Date(query.toDate);
+    }
     if (query.search) {
       where.OR = [
         { code: { contains: query.search, mode: 'insensitive' } },
@@ -54,14 +60,25 @@ export const adminRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) 
       ];
     }
 
-    const [orders, total] = await Promise.all([
+    const [orders, total, statusCountsRaw] = await Promise.all([
       prisma.order.findMany({
         where,
         orderBy: { createdAt: 'desc' },
         skip: (query.page - 1) * query.limit,
         take: query.limit,
         include: {
-          user: { select: { id: true, email: true } },
+          user: {
+            select: {
+              id: true,
+              email: true,
+              role: true,
+              balance: true,
+              createdAt: true,
+              _count: {
+                select: { orders: true },
+              },
+            },
+          },
           product: { select: { id: true, name: true, slug: true } },
           source: { select: { id: true, name: true } },
           items: true,
@@ -71,13 +88,30 @@ export const adminRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) 
         },
       }),
       prisma.order.count({ where }),
+      prisma.order.groupBy({
+        by: ['status'],
+        _count: { id: true },
+      }),
     ]);
+
+    const statusCounts: Record<string, number> = {};
+    for (const item of statusCountsRaw) {
+      statusCounts[item.status] = item._count.id;
+    }
 
     const formatted = orders.map((o) => ({
       ...o,
       unitPrice: Number(o.unitPrice),
       totalPrice: Number(o.totalPrice),
       unitCost: Number(o.unitCost),
+      user: {
+        id: o.user.id,
+        email: o.user.email,
+        role: o.user.role,
+        balance: Number(o.user.balance),
+        createdAt: o.user.createdAt,
+        totalOrdersCount: o.user._count?.orders ?? 1,
+      },
       items: o.items.map((i) => ({
         id: i.id,
         origin: i.origin,
@@ -90,12 +124,82 @@ export const adminRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) 
       success: true,
       data: {
         items: formatted,
+        statusCounts,
         pagination: {
           page: query.page,
           limit: query.limit,
           total,
           totalPages: Math.ceil(total / query.limit),
         },
+      },
+    });
+  });
+
+  // Get single order detail with decrypted links for admin inspection
+  fastify.get('/admin/orders/:id', { preHandler: [requireStaffOrAdmin] }, async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const order = await prisma.order.findUnique({
+      where: { id },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            role: true,
+            balance: true,
+            createdAt: true,
+            _count: {
+              select: { orders: true },
+            },
+          },
+        },
+        product: true,
+        source: true,
+        items: true,
+        sourceCalls: {
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    });
+
+    if (!order) {
+      return reply.status(404).send({
+        error: { code: 'ORDER_NOT_FOUND', message: 'Không tìm thấy đơn hàng' },
+      });
+    }
+
+    const items = order.items.map((i) => {
+      let decryptedLink = '';
+      try {
+        decryptedLink = decrypt(i.linkEncrypted);
+      } catch {
+        decryptedLink = '[Không thể giải mã link]';
+      }
+      return {
+        id: i.id,
+        origin: i.origin,
+        disabled: !!i.disabledAt,
+        disabledAt: i.disabledAt,
+        link: decryptedLink,
+      };
+    });
+
+    return reply.send({
+      success: true,
+      data: {
+        ...order,
+        unitPrice: Number(order.unitPrice),
+        totalPrice: Number(order.totalPrice),
+        unitCost: Number(order.unitCost),
+        user: {
+          id: order.user.id,
+          email: order.user.email,
+          role: order.user.role,
+          balance: Number(order.user.balance),
+          createdAt: order.user.createdAt,
+          totalOrdersCount: order.user._count?.orders ?? 1,
+        },
+        items,
       },
     });
   });

@@ -15,6 +15,7 @@ export const OrdersQuerySchema = z.object({
   status: z.nativeEnum(OrderStatus).optional(),
   productId: z.string().uuid().optional(),
   sourceId: z.string().uuid().optional(),
+  userId: z.string().optional(),
   search: z.string().optional(),
   fromDate: z.string().optional(),
   toDate: z.string().optional(),

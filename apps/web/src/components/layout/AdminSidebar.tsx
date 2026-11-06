@@ -19,7 +19,7 @@ import {
 
 export const ADMIN_NAV = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/admin/orders', label: 'Đơn hàng & Xử lý kẹt', icon: ShoppingCart },
+  { href: '/admin/orders', label: 'Quản lý khách đặt đơn', icon: ShoppingCart },
   { href: '/admin/sources', label: 'Nguồn bot Telegram', icon: Bot },
   { href: '/admin/products', label: 'Sản phẩm & Nguồn', icon: Package },
   { href: '/admin/pricing', label: 'Định giá & Duyệt giá', icon: Sliders },
