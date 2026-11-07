@@ -198,6 +198,11 @@ describe('Feature 4: Order Purchasing Pipeline & 2-Phase Commit Failover (UC-02,
           return tx;
         },
       },
+      errorLog: {
+        create: async ({ data }: any) => {
+          return { id: `mock-err-${Date.now()}`, ...data };
+        },
+      },
       $transaction: async (fn: any) => fn(mockPrisma),
     };
 

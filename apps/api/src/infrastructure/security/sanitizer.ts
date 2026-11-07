@@ -1,6 +1,10 @@
 const SENSITIVE_KEYS = new Set([
   'apiid',
   'apisecret',
+  'apikey',
+  'secret',
+  'clientsecret',
+  'authtoken',
   'signature',
   'token',
   'refreshtoken',
@@ -42,10 +46,8 @@ export function sanitizeLogData<T = any>(data: T): T {
       const lowerKey = key.toLowerCase();
       if (SENSITIVE_KEYS.has(lowerKey)) {
         sanitized[key] = '[REDACTED]';
-      } else if (typeof value === 'object' && value !== null) {
-        sanitized[key] = sanitizeLogData(value);
       } else {
-        sanitized[key] = value;
+        sanitized[key] = sanitizeLogData(value);
       }
     }
     return sanitized as T;

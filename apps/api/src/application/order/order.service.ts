@@ -1,8 +1,9 @@
 import { PrismaClient, OrderStatus, WalletTxType, OrderItemOrigin } from '@prisma/client';
-import { RoutingStrategy, BuyResult, Role } from '@geminihub/shared';
+import { RoutingStrategy, BuyResult, Role, ErrorSeverity } from '@geminihub/shared';
 import { createSourceAdapter } from '../../infrastructure/adapters/factory';
 import { encrypt, decrypt, hashSha256 } from '../../infrastructure/security/crypto';
 import { BadRequestError, NotFoundError } from '../../core/errors/AppError';
+import { ErrorLoggerService, errorLogger } from '../../infrastructure/logging/error-logger.service';
 import crypto from 'crypto';
 
 export interface CreateOrderParams {
@@ -14,7 +15,11 @@ export interface CreateOrderParams {
 }
 
 export class OrderService {
-  constructor(private prisma: PrismaClient) {}
+  private errorLogger: ErrorLoggerService;
+
+  constructor(private prisma: PrismaClient, customErrorLogger?: ErrorLoggerService) {
+    this.errorLogger = customErrorLogger || new ErrorLoggerService(prisma);
+  }
 
   /**
    * Main order purchasing pipeline with 2-phase commit and failover (UC-02, Section 6.4)
@@ -335,6 +340,26 @@ export class OrderService {
           });
         });
 
+        // Record bot error & user operational failure
+        await this.errorLogger.logBotError({
+          sourceId: source.id,
+          sourceName: source.name,
+          orderId: order.id,
+          message: `Nguồn ${source.name} không thể cấp hàng: ${callResult.reason}`,
+          code: callResult.reason,
+          context: { orderCode: order.code, productId, externalProductId },
+        });
+
+        await this.errorLogger.logUserError({
+          userId,
+          userEmail: user.email,
+          severity: ErrorSeverity.WARN,
+          source: 'ORDER',
+          code: 'ORDER_OUT_OF_STOCK',
+          message: `Đơn hàng ${order.code} thất bại do nguồn hết hàng. Đã hoàn tiền ${Number(totalPrice).toLocaleString('vi-VN')}đ vào ví.`,
+          context: { orderCode: order.code, amountRefunded: Number(totalPrice) },
+        });
+
         break;
       }
 
@@ -363,6 +388,26 @@ export class OrderService {
               failReason: `Kết quả chưa rõ: ${callResult.error}. Đơn được chuyển cho Admin đối soát.`,
             },
           });
+        });
+
+        // Record bot failure & user alert
+        await this.errorLogger.logBotError({
+          sourceId: source.id,
+          sourceName: source.name,
+          orderId: order.id,
+          message: `Nguồn ${source.name} phản hồi không xác định / timeout: ${callResult.error}`,
+          code: 'BOT_UNKNOWN_TIMEOUT',
+          context: { orderCode: order.code, productId, externalProductId, consecutiveErrors: source.consecutiveErrors + 1 },
+        });
+
+        await this.errorLogger.logUserError({
+          userId,
+          userEmail: user.email,
+          severity: ErrorSeverity.WARN,
+          source: 'ORDER',
+          code: 'ORDER_NEEDS_REVIEW',
+          message: `Đơn hàng ${order.code} chưa nhận được phản hồi từ nguồn. Đã chuyển trạng thái chờ Admin đối soát.`,
+          context: { orderCode: order.code },
         });
 
         break;

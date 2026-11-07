@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ErrorSeverity } from '../types';
 
 export const AdjustUserBalanceSchema = z.object({
   userId: z.string().uuid(),
@@ -50,4 +51,33 @@ export type RefundOrderInput = z.infer<typeof RefundOrderSchema>;
 export type AssignBankTxInput = z.infer<typeof AssignBankTxSchema>;
 export type PricingDefaultsInput = z.infer<typeof PricingDefaultsSchema>;
 export type GeneralSettingsInput = z.infer<typeof GeneralSettingsSchema>;
+
+export const ErrorLogQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  severity: z.nativeEnum(ErrorSeverity).optional(),
+  source: z.string().optional(),
+  status: z.string().optional(),
+  userId: z.string().optional(),
+  search: z.string().optional(),
+  fromDate: z.string().optional(),
+  toDate: z.string().optional(),
+});
+
+export const UpdateErrorLogStatusSchema = z.object({
+  status: z.enum(['OPEN', 'INVESTIGATING', 'RESOLVED', 'IGNORED']),
+  note: z.string().optional(),
+});
+
+export const ClientErrorPayloadSchema = z.object({
+  message: z.string().min(1, 'Thông báo lỗi không được để trống'),
+  stack: z.string().optional(),
+  source: z.string().default('CLIENT'),
+  url: z.string().optional(),
+  context: z.record(z.any()).optional(),
+});
+
+export type ErrorLogQueryInput = z.infer<typeof ErrorLogQuerySchema>;
+export type UpdateErrorLogStatusInput = z.infer<typeof UpdateErrorLogStatusSchema>;
+export type ClientErrorPayloadInput = z.infer<typeof ClientErrorPayloadSchema>;
 

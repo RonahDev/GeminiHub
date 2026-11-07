@@ -5,6 +5,7 @@ import { requireAdmin, requireStaffOrAdmin } from '../middlewares/auth.guard';
 import { createSourceAdapter } from '../../infrastructure/adapters/factory';
 import { encrypt, decrypt, maskSecret } from '../../infrastructure/security/crypto';
 import { PricingService } from '../../domain/pricing/pricing.service';
+import { errorLogger } from '../../infrastructure/logging/error-logger.service';
 import {
   CreateSourceSchema,
   UpdateSourceSchema,
@@ -16,6 +17,8 @@ import {
   ResolveWarrantyTicketSchema,
   PricePreviewSchema,
   OrdersQuerySchema,
+  ErrorLogQuerySchema,
+  UpdateErrorLogStatusSchema,
   OrderStatus,
   Role,
 } from '@geminihub/shared';
@@ -904,6 +907,77 @@ export const adminRoutes: FastifyPluginAsync = async (fastify: FastifyInstance) 
       take: 100,
     });
     return reply.send({ success: true, data: logs });
+  });
+
+  // ----------------------------------------------------
+  // Error Logs (System & User Error Management)
+  // ----------------------------------------------------
+  fastify.get('/admin/logs/errors', { preHandler: [requireAdmin] }, async (req, reply) => {
+    const parseRes = ErrorLogQuerySchema.safeParse(req.query);
+    const query = parseRes.success ? parseRes.data : { page: 1, limit: 20 };
+
+    const result = await errorLogger.listErrors(query);
+    return reply.send({
+      success: true,
+      data: result.items,
+      total: result.total,
+      page: result.page,
+      limit: result.limit,
+      totalPages: result.totalPages,
+      stats: result.stats,
+    });
+  });
+
+  fastify.get('/admin/logs/errors/:id', { preHandler: [requireAdmin] }, async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const log = await errorLogger.getErrorById(id);
+    if (!log) {
+      return reply.status(404).send({ error: { code: 'NOT_FOUND', message: 'Không tìm thấy log lỗi' } });
+    }
+    return reply.send({ success: true, data: log });
+  });
+
+  fastify.patch('/admin/logs/errors/:id/status', { preHandler: [requireAdmin] }, async (req, reply) => {
+    const { id } = req.params as { id: string };
+    const parseRes = UpdateErrorLogStatusSchema.safeParse(req.body);
+    if (!parseRes.success) {
+      return reply.status(400).send({
+        error: { code: 'VALIDATION_ERROR', message: parseRes.error.errors[0].message },
+      });
+    }
+
+    try {
+      const updated = await errorLogger.updateStatus(id, parseRes.data.status, req.user?.email);
+      return reply.send({ success: true, data: updated, message: 'Đã cập nhật trạng thái lỗi thành công' });
+    } catch (err: any) {
+      return reply.status(400).send({
+        error: { code: 'UPDATE_FAILED', message: err.message || 'Không thể cập nhật trạng thái' },
+      });
+    }
+  });
+
+  fastify.delete('/admin/logs/errors/:id', { preHandler: [requireAdmin] }, async (req, reply) => {
+    const { id } = req.params as { id: string };
+    try {
+      await errorLogger.deleteError(id);
+      return reply.send({ success: true, message: 'Đã xóa bản ghi log lỗi' });
+    } catch (err: any) {
+      return reply.status(400).send({
+        error: { code: 'DELETE_FAILED', message: err.message || 'Không thể xóa log' },
+      });
+    }
+  });
+
+  fastify.post('/admin/logs/errors/clear', { preHandler: [requireAdmin] }, async (req, reply) => {
+    const { days = 30 } = (req.body as any) || {};
+    try {
+      const result = await errorLogger.clearOldErrors(Number(days) || 30);
+      return reply.send({ success: true, message: `Đã dọn dẹp ${result.count} log lỗi cũ`, count: result.count });
+    } catch (err: any) {
+      return reply.status(400).send({
+        error: { code: 'CLEAR_FAILED', message: err.message || 'Không thể dọn dẹp log' },
+      });
+    }
   });
 };
 

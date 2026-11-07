@@ -10,6 +10,9 @@ import swaggerUi from '@fastify/swagger-ui';
 import { env } from '../core/config/env';
 import { sanitizeLogData } from '../infrastructure/security/sanitizer';
 import { AppError } from '../core/errors/AppError';
+import { errorLogger } from '../infrastructure/logging/error-logger.service';
+import { ErrorSeverity, ClientErrorPayloadSchema } from '@geminihub/shared';
+import { requireAuth } from './middlewares/auth.guard';
 
 import { authRoutes } from './routes/auth.routes';
 import { walletRoutes } from './routes/wallet.routes';
@@ -99,15 +102,70 @@ export async function buildApp(): Promise<FastifyInstance> {
       await v1.register(orderRoutes);
       await v1.register(webhookRoutes);
       await v1.register(adminRoutes);
+
+      // Client-side crash / error reporting route (Rate-limited, accepts client exceptions)
+      v1.post('/logs/client-error', async (req, reply) => {
+        const parseRes = ClientErrorPayloadSchema.safeParse(req.body);
+        if (!parseRes.success) {
+          return reply.status(400).send({
+            error: { code: 'INVALID_PAYLOAD', message: parseRes.error.errors[0].message },
+          });
+        }
+        const user = (req as any).user;
+        await errorLogger.logClientError({
+          message: parseRes.data.message,
+          stack: parseRes.data.stack,
+          url: parseRes.data.url,
+          context: parseRes.data.context,
+          userId: user?.userId,
+          userEmail: user?.email,
+          ip: req.ip,
+          userAgent: req.headers['user-agent'] as string,
+        });
+        return reply.send({ success: true, message: 'Đã tiếp nhận báo cáo lỗi' });
+      });
+
+      // User-specific error log history
+      v1.get('/user/logs', { preHandler: [requireAuth] }, async (req, reply) => {
+        const user = (req as any).user;
+        const logs = await errorLogger.listUserErrors(user.userId, 20);
+        return reply.send({ success: true, data: logs });
+      });
     },
     { prefix: '/api/v1' }
   );
 
   // Global Error Handler
-  app.setErrorHandler((error: any, req, reply) => {
+  app.setErrorHandler(async (error: any, req, reply) => {
     app.log.error(sanitizeLogData(error));
 
+    const user = (req as any).user;
+    const ip = req.ip;
+    const userAgent = req.headers['user-agent'] as string;
+    const path = req.url;
+    const method = req.method;
+
     if (error instanceof AppError) {
+      const isServerError = error.statusCode >= 500;
+      await errorLogger.recordError({
+        severity: isServerError ? ErrorSeverity.FATAL : ErrorSeverity.WARN,
+        source: 'API',
+        code: error.code,
+        message: error.message,
+        stack: isServerError ? error.stack : undefined,
+        context: {
+          details: error.details,
+          params: req.params,
+          query: req.query,
+        },
+        userId: user?.userId,
+        userEmail: user?.email,
+        ip,
+        userAgent,
+        path,
+        method,
+      });
+
       return reply.status(error.statusCode).send({
         error: {
           code: error.code,
@@ -118,6 +176,26 @@ export async function buildApp(): Promise<FastifyInstance> {
     }
 
     const statusCode = error.statusCode || 500;
+    const isFatal = statusCode >= 500;
+
+    await errorLogger.recordError({
+      severity: isFatal ? ErrorSeverity.FATAL : ErrorSeverity.WARN,
+      source: isFatal ? 'SYSTEM' : 'API',
+      code: error.code || (isFatal ? 'INTERNAL_SERVER_ERROR' : 'BAD_REQUEST'),
+      message: error.message || 'Đã có lỗi xảy ra trên hệ thống',
+      stack: isFatal ? error.stack : undefined,
+      context: {
+        params: req.params,
+        query: req.query,
+      },
+      userId: user?.userId,
+      userEmail: user?.email,
+      ip,
+      userAgent,
+      path,
+      method,
+    });
+
     return reply.status(statusCode).send({
       error: {
         code: error.code || 'INTERNAL_ERROR',

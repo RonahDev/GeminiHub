@@ -13,6 +13,7 @@ import {
   Users,
   Sliders,
   FileText,
+  AlertOctagon,
   ArrowLeft,
   Sparkles,
 } from 'lucide-react';
@@ -26,6 +27,7 @@ export const ADMIN_NAV = [
   { href: '/admin/warranties', label: 'Ticket bảo hành', icon: ShieldAlert },
   { href: '/admin/users', label: 'Quản lý khách', icon: Users },
   { href: '/admin/audit-logs', label: 'Nhật ký kiểm toán', icon: FileText },
+  { href: '/admin/error-logs', label: 'Nhật ký lỗi (System & User)', icon: AlertOctagon },
 ];
 
 export function AdminSidebar() {

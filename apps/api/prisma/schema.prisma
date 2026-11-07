@@ -7,6 +7,13 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum ErrorSeverity {
+  INFO
+  WARN
+  ERROR
+  FATAL
+}
+
 enum Role {
   USER
   STAFF
@@ -124,6 +131,7 @@ model User {
   topups             Topup[]
   orders             Order[]
   warrantyTickets    WarrantyTicket[]
+  errorLogs          ErrorLog[]
 
   @@map("users")
 }
@@ -440,5 +448,35 @@ model Setting {
   updatedAt DateTime @updatedAt
 
   @@map("settings")
+}
+
+model ErrorLog {
+  id         String        @id @default(uuid())
+  severity   ErrorSeverity @default(ERROR)
+  source     String        // API, SYSTEM, AUTH, ORDER, WALLET, TELEGRAM_BOT, WEBHOOK, CLIENT
+  code       String?       // INSUFFICIENT_FUNDS, BOT_TIMEOUT, INTERNAL_ERROR, etc.
+  message    String        @db.Text
+  stack      String?       @db.Text
+  context    String?       @db.Text
+  userId     String?
+  userEmail  String?
+  ip         String?
+  userAgent  String?
+  path       String?
+  method     String?
+  status     String        @default("OPEN") // OPEN, INVESTIGATING, RESOLVED, IGNORED
+  resolvedAt DateTime?
+  resolvedBy String?
+  createdAt  DateTime      @default(now())
+
+  user       User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([severity])
+  @@index([source])
+  @@index([code])
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("error_logs")
 }
 

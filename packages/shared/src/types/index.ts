@@ -136,3 +136,42 @@ export interface JwtPayload {
   role: Role;
 }
 
+export enum ErrorSeverity {
+  INFO = 'INFO',
+  WARN = 'WARN',
+  ERROR = 'ERROR',
+  FATAL = 'FATAL',
+}
+
+export enum ErrorStatus {
+  OPEN = 'OPEN',
+  INVESTIGATING = 'INVESTIGATING',
+  RESOLVED = 'RESOLVED',
+  IGNORED = 'IGNORED',
+}
+
+export interface ErrorLogItem {
+  id: string;
+  severity: ErrorSeverity;
+  source: string;
+  code?: string | null;
+  message: string;
+  stack?: string | null;
+  context?: string | null;
+  userId?: string | null;
+  userEmail?: string | null;
+  ip?: string | null;
+  userAgent?: string | null;
+  path?: string | null;
+  method?: string | null;
+  status: string;
+  resolvedAt?: string | null;
+  resolvedBy?: string | null;
+  createdAt: string;
+  user?: {
+    id: string;
+    email: string;
+    role: string;
+  } | null;
+}
+
